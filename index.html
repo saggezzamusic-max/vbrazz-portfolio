@@ -223,8 +223,8 @@ footer{position:relative;z-index:1;padding:28px 48px;background:rgba(6,7,13,.9);
     <div class="s-label">002 — Música</div>
     <h2 class="s-title">Sonidos<br>que construyo.</h2>
   </div>
-  <audio id="aud-a" class="audio-hidden" src="02-MUSICA/DREAM-CONTINUUM/MIXTAPES/_WAV-CRUDOS/01_VACIO-INICIAL_100bpm_suave.wav" preload="none"></audio>
-  <audio id="aud-b" class="audio-hidden" src="02-MUSICA/DREAM-CONTINUUM/MIXTAPES/HIPNOTIC 2 VOL/MIXTAPE VOL 02/02 STEREO.wav" preload="none"></audio>
+  <div id="yt-a" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"></div>
+  <div id="yt-b" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"></div>
   <div class="music-grid reveal">
     <div class="track-card" id="card-a" onclick="playTrack('a')">
       <div class="track-bpm">100 BPM · Dream Continuum</div>
@@ -462,32 +462,51 @@ window.addEventListener('scroll',()=>{
   for(let i=0;i<30;i++){const b=document.createElement('div');b.className='wf-bar';b.style.height=(8+Math.random()*36)+'px';b.style.animationDuration=(0.35+Math.random()*0.55)+'s';el.appendChild(b);}
 });
 
-// AUDIO
-const AUDS={a:document.getElementById('aud-a'),b:document.getElementById('aud-b')};
+// AUDIO — YouTube IFrame API
+const YT_IDS={a:'fcTWyMyhvUc',b:''};  // b = agrega el ID de STEREO cuando lo subas
+const YT_PLAYERS={};
 let cur2=null;
+
+function onYouTubeIframeAPIReady(){
+  ['a','b'].forEach(name=>{
+    if(!YT_IDS[name])return;
+    YT_PLAYERS[name]=new YT.Player('yt-'+name,{
+      height:'1',width:'1',
+      videoId:YT_IDS[name],
+      playerVars:{autoplay:0,controls:0},
+      events:{onStateChange:e=>{
+        if(e.data===YT.PlayerState.ENDED){
+          document.getElementById('card-'+name).classList.remove('playing');
+          document.getElementById('btn-'+name).querySelector('.pi').textContent='▶';
+          document.getElementById('btn-'+name).querySelector('.pl').textContent='Play';
+          cur2=null;
+        }
+      }}
+    });
+  });
+}
+// Load YT API
+(function(){const s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';document.head.appendChild(s);})();
+
 function playTrack(name){
-  const audio=AUDS[name],card=document.getElementById('card-'+name),btn=document.getElementById('btn-'+name);
+  if(!YT_IDS[name]){return;}
+  const player=YT_PLAYERS[name],card=document.getElementById('card-'+name),btn=document.getElementById('btn-'+name);
+  if(!player)return;
   if(cur2&&cur2!==name){
-    AUDS[cur2].pause();AUDS[cur2].currentTime=0;
+    YT_PLAYERS[cur2]?.pauseVideo();
     document.getElementById('card-'+cur2).classList.remove('playing');
     document.getElementById('btn-'+cur2).querySelector('.pi').textContent='▶';
     document.getElementById('btn-'+cur2).querySelector('.pl').textContent='Play';
   }
-  if(audio.paused){
-    audio.play().catch(()=>{});card.classList.add('playing');
-    btn.querySelector('.pi').textContent='⏸';btn.querySelector('.pl').textContent='Pause';cur2=name;
-  }else{
-    audio.pause();card.classList.remove('playing');
+  const state=player.getPlayerState();
+  if(state===YT.PlayerState.PLAYING){
+    player.pauseVideo();card.classList.remove('playing');
     btn.querySelector('.pi').textContent='▶';btn.querySelector('.pl').textContent='Play';cur2=null;
+  }else{
+    player.playVideo();card.classList.add('playing');
+    btn.querySelector('.pi').textContent='⏸';btn.querySelector('.pl').textContent='Pause';cur2=name;
   }
 }
-Object.entries(AUDS).forEach(([n,a])=>{
-  a.addEventListener('ended',()=>{
-    document.getElementById('card-'+n).classList.remove('playing');
-    document.getElementById('btn-'+n).querySelector('.pi').textContent='▶';
-    document.getElementById('btn-'+n).querySelector('.pl').textContent='Play';cur2=null;
-  });
-});
 
 // REVEAL
 const obs=new IntersectionObserver(e=>e.forEach(x=>{if(x.isIntersecting)x.target.classList.add('visible');}),{threshold:.07});
